@@ -44,4 +44,4 @@
 
 ## Continuous Tasks
 - [ ] Add Unit Tests for each component.
-- [ ] Update `DEVELOPMENT.md` with new findings.
+- [x] Update `DEVELOPMENT.md` and `README.md`.

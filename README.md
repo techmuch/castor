@@ -8,22 +8,69 @@ Unlike many agent frameworks that rely heavily on cloud APIs, Castor treats loca
 
 ## Features
 
-*   **🔌 Model Agnostic:** Plug-and-play support for any OpenAI-compatible API (Ollama, Llama.cpp) and extensible interfaces for others.
-*   **🛠️ Robust Tooling:** Includes a sophisticated file editing tool with self-correction capabilities and support for the Model Context Protocol (MCP).
-*   **🧠 Context Management:** Smart context window handling, history persistence, and session management.
-*   **📦 Embeddable:** Use it as a library in your own Go tools, or run it as a standalone CLI.
-*   **🛡️ Secure:** Workspace sandboxing and human-in-the-loop confirmation mechanisms.
+*   **🔌 Model Agnostic:** Plug-and-play support for OpenAI-compatible APIs (Ollama, Llama.cpp, OpenAI).
+*   **🛠️ Robust Tooling:**
+    *   **Filesystem:** Safely list and read files within a sandboxed workspace.
+    *   **Smart Edit:** A robust `replace` tool with exact matching, whitespace-insensitive flexible matching, and hash-based verification for safety.
+*   **🧠 Context Management:**
+    *   **Session Persistence:** Save and load chat history to JSON files to resume conversations later.
+    *   **History Management:** Type-safe message history handling.
+*   **🖥️ Operational Modes:**
+    *   **Headless CLI:** Scriptable interface for automation.
+    *   **TUI:** Rich interactive Terminal User Interface powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea).
+    *   **REPL:** Simple interactive command-line loop.
 
-## Operational Modes
+## Installation
 
-1.  **Headless:** For automation scripts and shell integration.
-2.  **TUI:** A rich terminal user interface for interactive coding assistance.
-3.  **Embedded:** An API mode for integrating agentic capabilities into host applications.
+### Prerequisites
+*   Go 1.21 or higher
+*   An OpenAI-compatible API key (or a local runner like Ollama)
 
-## Getting Started
+### Build
+```bash
+git clone https://github.com/techmuch/castor.git
+cd castor
+go build -o castor ./cmd/castor
+```
 
-*(Instructions coming soon as the project initializes)*
+## Usage
+
+Set your API key (if using OpenAI):
+```bash
+export OPENAI_API_KEY=sk-...
+```
+
+### 1. Interactive Terminal UI (Recommended)
+The TUI provides a modern chat experience with scrolling history and text editing.
+```bash
+./castor -tui
+```
+
+### 2. Headless / One-Shot Mode
+Execute a single prompt and exit. Useful for scripting.
+```bash
+./castor "List the files in the current directory"
+```
+
+### 3. Session Persistence
+Save the conversation state to a file to resume it later.
+```bash
+# Start a session
+./castor -session my_chat.json -i
+
+# The agent remembers previous context when you run it again with the same session file
+```
+
+### 4. Workspace Sandboxing
+By default, Castor uses the current directory as the workspace. You can specify a different root to restrict file access:
+```bash
+./castor -w /path/to/safe/workspace -tui
+```
+
+## Development
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for contribution guidelines.
 
 ## License
 
-[License Information Here]
+MIT
