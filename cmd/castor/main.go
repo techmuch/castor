@@ -20,6 +20,7 @@ func main() {
 	systemPrompt := flag.String("system", "You are a helpful assistant with access to files.", "System prompt")
 	interactive := flag.Bool("i", false, "Interactive mode")
 	workspace := flag.String("w", ".", "Workspace root directory")
+	sessionPath := flag.String("session", "", "Path to session file for persistence")
 	flag.Parse()
 
 	if apiKey == "" {
@@ -31,18 +32,23 @@ func main() {
 	ag := agent.New(client, *systemPrompt)
 	
 	// Register Tools
-	lsTool := &fs.ListDirTool{WorkspaceRoot: *workspace}
-	readTool := &fs.ReadFileTool{WorkspaceRoot: *workspace}
-	replaceTool := &edit.EditTool{WorkspaceRoot: *workspace}
+	ag.RegisterTool(&fs.ListDirTool{WorkspaceRoot: *workspace})
+	ag.RegisterTool(&fs.ReadFileTool{WorkspaceRoot: *workspace})
+	ag.RegisterTool(&edit.EditTool{WorkspaceRoot: *workspace})
 
-	ag.RegisterTool(lsTool)
-	ag.RegisterTool(readTool)
-	ag.RegisterTool(replaceTool)
+	// Load Session if provided
+	if *sessionPath != "" {
+		if _, err := os.Stat(*sessionPath); err == nil {
+			if err := ag.LoadSession(*sessionPath); err != nil {
+				fmt.Printf("Warning: Failed to load session: %v\n", err)
+			}
+		}
+	}
 
 	ctx := context.Background()
 
 	if *interactive {
-		runInteractive(ctx, ag)
+		runInteractive(ctx, ag, *sessionPath)
 	} else {
 		// One-shot mode
 		args := flag.Args()
@@ -51,11 +57,11 @@ func main() {
 			os.Exit(1)
 		}
 		prompt := strings.Join(args, " ")
-		runOnce(ctx, ag, prompt)
+		runOnce(ctx, ag, prompt, *sessionPath)
 	}
 }
 
-func runOnce(ctx context.Context, ag *agent.Agent, prompt string) {
+func runOnce(ctx context.Context, ag *agent.Agent, prompt string, sessionPath string) {
 	stream, err := ag.Chat(ctx, prompt)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -67,21 +73,25 @@ func runOnce(ctx context.Context, ag *agent.Agent, prompt string) {
 			fmt.Printf("\nError during generation: %v\n", event.Error)
 			return
 		}
-		// Print text delta
 		if event.Delta != "" {
 			fmt.Print(event.Delta)
 		}
-		// Print tool calls (optional feedback)
 		if len(event.ToolCalls) > 0 {
 			for _, tc := range event.ToolCalls {
 				fmt.Printf("\n[Tool Call: %s(%v)]\n", tc.Name, tc.Args)
 			}
 		}
 	}
-	fmt.Println() 
+	fmt.Println()
+
+	if sessionPath != "" {
+		if err := ag.SaveSession(sessionPath); err != nil {
+			fmt.Printf("Error saving session: %v\n", err)
+		}
+	}
 }
 
-func runInteractive(ctx context.Context, ag *agent.Agent) {
+func runInteractive(ctx context.Context, ag *agent.Agent, sessionPath string) {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Castor Interactive Mode (Ctrl+C to exit)")
 	fmt.Println("----------------------------------------")
@@ -117,5 +127,11 @@ func runInteractive(ctx context.Context, ag *agent.Agent) {
 			}
 		}
 		fmt.Println()
+
+		if sessionPath != "" {
+			if err := ag.SaveSession(sessionPath); err != nil {
+				fmt.Printf("Error saving session: %v\n", err)
+			}
+		}
 	}
 }

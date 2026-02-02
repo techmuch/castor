@@ -28,7 +28,7 @@
 ## Phase 3: Modes & Use Cases (In Progress)
 - [x] **Headless CLI**
     - [x] Implement `cmd/castor/main.go` for flags and entry point.
-    - [ ] Add context persistence (save/load session).
+    - [x] Add context persistence (save/load session).
 - [ ] **TUI (Terminal UI)**
     - [ ] Integrate Bubble Tea.
     - [ ] Implement chat view and input handling.
