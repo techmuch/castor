@@ -25,7 +25,7 @@
     - [x] Implement Flexible/Regex matching.
     - [x] Implement "Fixer" loop for failed edits.
 
-## Phase 3: Modes & Use Cases (In Progress)
+## Phase 3: Modes & Use Cases (Completed)
 - [x] **Headless CLI**
     - [x] Implement `cmd/castor/main.go` for flags and entry point.
     - [x] Add context persistence (save/load session).
@@ -35,10 +35,10 @@
 - [ ] **API Interface**
     - [ ] Define exported `Agent` struct for library usage (Refine `pkg/agent`).
 
-## Phase 4: MCP & Advanced Agents
-- [ ] **MCP Client**
-    - [ ] Implement Stdio transport.
-    - [ ] Implement Tool discovery and registration.
+## Phase 4: MCP & Advanced Agents (In Progress)
+- [x] **MCP Client**
+    - [x] Implement Stdio transport.
+    - [x] Implement Tool discovery and registration.
 - [ ] **Investigator Agent**
     - [ ] Create specialized loop for "Scratchpad" workflow.
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/techmuch/castor/pkg/agent"
 	"github.com/techmuch/castor/pkg/llm/openai"
+	"github.com/techmuch/castor/pkg/mcp"
 	"github.com/techmuch/castor/pkg/tools/edit"
 	"github.com/techmuch/castor/pkg/tools/fs"
 	"github.com/techmuch/castor/pkg/tui"
@@ -23,6 +24,7 @@ func main() {
 	gui := flag.Bool("tui", false, "Start Terminal UI")
 	workspace := flag.String("w", ".", "Workspace root directory")
 	sessionPath := flag.String("session", "", "Path to session file for persistence")
+	mcpCmd := flag.String("mcp", "", "Command to run an MCP server (e.g. 'npx -y @modelcontextprotocol/server-filesystem')")
 	flag.Parse()
 
 	if apiKey == "" {
@@ -37,11 +39,45 @@ func main() {
 	ag.RegisterTool(&fs.ListDirTool{WorkspaceRoot: *workspace})
 	ag.RegisterTool(&fs.ReadFileTool{WorkspaceRoot: *workspace})
 	
-	// Register Edit Tool with Fixer (injecting the client)
+	// Register Edit Tool with Fixer
 	ag.RegisterTool(&edit.EditTool{
 		WorkspaceRoot: *workspace,
 		Provider:      client,
 	})
+	
+	ctx := context.Background()
+
+	// Connect to MCP Server if requested
+	if *mcpCmd != "" {
+		parts := strings.Fields(*mcpCmd)
+		if len(parts) > 0 {
+			transport, err := mcp.NewStdioTransport(parts[0], parts[1:])
+			if err != nil {
+				fmt.Printf("Error starting MCP server: %v\n", err)
+				os.Exit(1)
+			}
+			defer transport.Close()
+
+			mcpClient := mcp.NewClient(transport)
+			if err := mcpClient.Initialize(ctx); err != nil {
+				fmt.Printf("Error initializing MCP client: %v\n", err)
+				os.Exit(1)
+			}
+			defer mcpClient.Close()
+
+			tools, err := mcpClient.ListTools(ctx)
+			if err != nil {
+				fmt.Printf("Error listing MCP tools: %v\n", err)
+				os.Exit(1)
+			}
+
+			fmt.Printf("Connected to MCP server. Discovered %d tools:\n", len(tools))
+			for _, t := range tools {
+				fmt.Printf("- %s: %s\n", t.Name(), t.Description())
+				ag.RegisterTool(t)
+			}
+		}
+	}
 
 	// Load Session if provided
 	if *sessionPath != "" {
@@ -51,8 +87,6 @@ func main() {
 			}
 		}
 	}
-
-	ctx := context.Background()
 
 	if *gui {
 		if err := tui.Run(ag); err != nil {
