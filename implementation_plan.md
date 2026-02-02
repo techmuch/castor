@@ -29,9 +29,9 @@
 - [x] **Headless CLI**
     - [x] Implement `cmd/castor/main.go` for flags and entry point.
     - [x] Add context persistence (save/load session).
-- [ ] **TUI (Terminal UI)**
-    - [ ] Integrate Bubble Tea.
-    - [ ] Implement chat view and input handling.
+- [x] **TUI (Terminal UI)**
+    - [x] Integrate Bubble Tea.
+    - [x] Implement chat view and input handling.
 - [ ] **API Interface**
     - [ ] Define exported `Agent` struct for library usage (Refine `pkg/agent`).
 

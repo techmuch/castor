@@ -12,13 +12,15 @@ import (
 	"github.com/techmuch/castor/pkg/llm/openai"
 	"github.com/techmuch/castor/pkg/tools/edit"
 	"github.com/techmuch/castor/pkg/tools/fs"
+	"github.com/techmuch/castor/pkg/tui"
 )
 
 func main() {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	model := flag.String("model", "gpt-3.5-turbo", "LLM model to use")
 	systemPrompt := flag.String("system", "You are a helpful assistant with access to files.", "System prompt")
-	interactive := flag.Bool("i", false, "Interactive mode")
+	interactive := flag.Bool("i", false, "Interactive mode (REPL)")
+	gui := flag.Bool("tui", false, "Start Terminal UI")
 	workspace := flag.String("w", ".", "Workspace root directory")
 	sessionPath := flag.String("session", "", "Path to session file for persistence")
 	flag.Parse()
@@ -47,7 +49,12 @@ func main() {
 
 	ctx := context.Background()
 
-	if *interactive {
+	if *gui {
+		if err := tui.Run(ag); err != nil {
+			fmt.Printf("Error running TUI: %v\n", err)
+			os.Exit(1)
+		}
+	} else if *interactive {
 		runInteractive(ctx, ag, *sessionPath)
 	} else {
 		// One-shot mode
