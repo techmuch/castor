@@ -36,7 +36,12 @@ func main() {
 	// Register Tools
 	ag.RegisterTool(&fs.ListDirTool{WorkspaceRoot: *workspace})
 	ag.RegisterTool(&fs.ReadFileTool{WorkspaceRoot: *workspace})
-	ag.RegisterTool(&edit.EditTool{WorkspaceRoot: *workspace})
+	
+	// Register Edit Tool with Fixer (injecting the client)
+	ag.RegisterTool(&edit.EditTool{
+		WorkspaceRoot: *workspace,
+		Provider:      client,
+	})
 
 	// Load Session if provided
 	if *sessionPath != "" {

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/techmuch/castor/pkg/agent"
+	"github.com/techmuch/castor/pkg/llm"
 )
 
 // Ensure EditTool implements agent.Tool
@@ -19,12 +20,13 @@ var _ agent.Tool = (*EditTool)(nil)
 // EditTool performs text replacements in files.
 type EditTool struct {
 	WorkspaceRoot string
+	Provider      llm.Provider // Optional: for self-correction
 }
 
 func (t *EditTool) Name() string { return "replace" }
 
 func (t *EditTool) Description() string {
-	return "Replaces text within a file. Provide unique old_string to target the change. Supports exact and flexible (whitespace-insensitive) matching."
+	return "Replaces text within a file. Provide unique old_string to target the change. Supports exact, flexible, and self-correcting matching."
 }
 
 func (t *EditTool) Schema() interface{} {
@@ -66,9 +68,7 @@ func (t *EditTool) Execute(ctx context.Context, args map[string]interface{}) (in
 	// Optional hash check
 	expectedHash, _ := args["expected_hash"].(string)
 
-	// Validate path (basic sandboxing)
 	absRoot, _ := filepath.Abs(t.WorkspaceRoot)
-	// TODO: Use shared sandboxing util from fs package if exported, or duplicate logic
 	targetPath := filepath.Join(absRoot, pathStr) 
 	if !strings.HasPrefix(targetPath, absRoot) {
 		return nil, fmt.Errorf("access denied: path outside workspace")
@@ -80,7 +80,7 @@ func (t *EditTool) Execute(ctx context.Context, args map[string]interface{}) (in
 	}
 	content := string(contentBytes)
 
-	// 0. Verify Hash if provided
+	// 0. Verify Hash
 	if expectedHash != "" {
 		hasher := sha256.New()
 		hasher.Write(contentBytes)
@@ -91,30 +91,42 @@ func (t *EditTool) Execute(ctx context.Context, args map[string]interface{}) (in
 	}
 
 	// Strategy 1: Exact Match
-	if count := strings.Count(content, oldStr); count > 0 {
-		if count > 1 {
-			return nil, fmt.Errorf("exact match found multiple times (%d); provide more context to be unique", count)
-		}
-		newContent := strings.Replace(content, oldStr, newStr, 1)
-		return t.write(targetPath, newContent)
+	if t.tryExact(targetPath, content, oldStr, newStr) {
+		return "Successfully replaced text (exact match).", nil
 	}
 
 	// Strategy 2: Flexible Match (Ignore Whitespace)
-	// We normalize both content and oldStr to find a match.
-	// This is complex because we need to map the normalized match back to the original string indices to replace it.
-	
-	// Simple approach: exact match on lines, ignoring leading/trailing whitespace?
-	// Robust approach: Tokenize or Regex.
-	
-	// Let's try a Regex that turns whitespace in oldStr into `\s+`
-	// We first replace specific whitespace chars with spaces to simplify
+	if t.tryFlexible(targetPath, content, oldStr, newStr) {
+		return "Successfully replaced text (flexible match).", nil
+	}
+
+	// Strategy 3: Self-Correction (Fixer LLM)
+	if t.Provider != nil {
+		fixedOldStr, err := t.runFixer(ctx, content, oldStr)
+		if err == nil && fixedOldStr != "" && fixedOldStr != oldStr {
+			if t.tryExact(targetPath, content, fixedOldStr, newStr) {
+				return fmt.Sprintf("Successfully replaced text (auto-corrected old_string)."), nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("old_string not found (tried exact, flexible, and fixer)")
+}
+
+func (t *EditTool) tryExact(path, content, oldStr, newStr string) bool {
+	if strings.Count(content, oldStr) == 1 {
+		newContent := strings.Replace(content, oldStr, newStr, 1)
+		return t.write(path, newContent) == nil
+	}
+	return false
+}
+
+func (t *EditTool) tryFlexible(path, content, oldStr, newStr string) bool {
 	fields := strings.Fields(oldStr)
 	if len(fields) == 0 {
-		// oldStr was just whitespace?
-		return nil, fmt.Errorf("old_string is empty or only whitespace")
+		return false
 	}
 	
-	// Reconstruct pattern: field1\s+field2\s+...
 	var patternBuilder strings.Builder
 	for i, field := range fields {
 		if i > 0 {
@@ -126,28 +138,62 @@ func (t *EditTool) Execute(ctx context.Context, args map[string]interface{}) (in
 	
 	re, err := regexp.Compile(flexiblePattern)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build flexible match regex: %w", err)
+		return false
 	}
 
 	matches := re.FindAllStringIndex(content, -1)
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("old_string not found (tried exact and flexible match)")
+	if len(matches) == 1 {
+		matchIdx := matches[0]
+		start, end := matchIdx[0], matchIdx[1]
+		newContent := content[:start] + newStr + content[end:]
+		return t.write(path, newContent) == nil
 	}
-	if len(matches) > 1 {
-		return nil, fmt.Errorf("flexible match found multiple times (%d); provide more context", len(matches))
-	}
-
-	// Perform replacement on the specific range found
-	matchIdx := matches[0]
-	start, end := matchIdx[0], matchIdx[1]
-	
-	newContent := content[:start] + newStr + content[end:]
-	return t.write(targetPath, newContent)
+	return false
 }
 
-func (t *EditTool) write(path string, content string) (interface{}, error) {
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		return nil, fmt.Errorf("failed to write file: %w", err)
+func (t *EditTool) write(path string, content string) error {
+	return os.WriteFile(path, []byte(content), 0644)
+}
+
+func (t *EditTool) runFixer(ctx context.Context, fileContent, brokenOldStr string) (string, error) {
+	// Construct a prompt to find the correct string
+	// We truncate fileContent if it's too huge to avoid token limits,
+	// but for now assume it fits.
+	
+	systemPrompt := "You are a specialized text correction agent. Your job is to find the closest match for a string in a file."
+	userPrompt := fmt.Sprintf(`I want to replace a string in a file, but I can't find an exact match. 
+Here is the string I'm looking for (it might have wrong indentation or whitespace):
+<<<<<<<<
+%s
+>>>>>>>>
+
+Here is the actual file content:
+<<<<<<<<
+%s
+>>>>>>>>
+
+Find the unique string in the file content that most likely matches my intent. 
+Return ONLY the exact string from the file content, with no other text.
+If there is no clear match or multiple matches, return nothing.`, brokenOldStr, fileContent)
+
+	history := []llm.Message{
+		{Role: llm.RoleSystem, Content: []llm.Part{llm.TextPart{Text: systemPrompt}}},
+		{Role: llm.RoleUser, Content: []llm.Part{llm.TextPart{Text: userPrompt}}},
 	}
-	return "Successfully replaced text.", nil
+
+	opts := llm.GenerateOptions{Temperature: 0.0} // Deterministic
+	stream, err := t.Provider.GenerateContent(ctx, history, opts)
+	if err != nil {
+		return "", err
+	}
+
+	var result strings.Builder
+	for event := range stream {
+		if event.Error != nil {
+			return "", event.Error
+		}
+		result.WriteString(event.Delta)
+	}
+
+	return strings.TrimSpace(result.String()), nil
 }

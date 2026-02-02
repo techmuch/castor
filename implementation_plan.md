@@ -19,11 +19,11 @@
 - [x] **Core Filesystem Tools**
     - [x] Implement `read_file`, `ls` (`pkg/tools/fs`).
     - [x] Implement workspace sandboxing.
-- [ ] **Advanced Edit Tool** (`pkg/tools/edit`)
+- [x] **Advanced Edit Tool** (`pkg/tools/edit`)
     - [x] Implement Exact Match strategy.
     - [x] Implement hashing for Read-Modify-Write safety.
     - [x] Implement Flexible/Regex matching.
-    - [ ] Implement "Fixer" loop for failed edits.
+    - [x] Implement "Fixer" loop for failed edits.
 
 ## Phase 3: Modes & Use Cases (In Progress)
 - [x] **Headless CLI**

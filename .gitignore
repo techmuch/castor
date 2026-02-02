@@ -1,5 +1,5 @@
 # Binaries
-castor
+/castor
 main
 *.exe
 *.test
