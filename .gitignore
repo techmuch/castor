@@ -1,0 +1,15 @@
+# Binaries
+castor
+main
+*.exe
+*.test
+
+# OS specific
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Go
+vendor/
