@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -24,7 +25,8 @@ func main() {
 	gui := flag.Bool("tui", false, "Start Terminal UI")
 	workspace := flag.String("w", ".", "Workspace root directory")
 	sessionPath := flag.String("session", "", "Path to session file for persistence")
-	mcpCmd := flag.String("mcp", "", "Command to run an MCP server (e.g. 'npx -y @modelcontextprotocol/server-filesystem')")
+	mcpCmd := flag.String("mcp", "", "Command to run an MCP server")
+	investigate := flag.Bool("investigate", false, "Run in investigator mode (requires prompt)")
 	flag.Parse()
 
 	if apiKey == "" {
@@ -38,8 +40,6 @@ func main() {
 	// Register Tools
 	ag.RegisterTool(&fs.ListDirTool{WorkspaceRoot: *workspace})
 	ag.RegisterTool(&fs.ReadFileTool{WorkspaceRoot: *workspace})
-	
-	// Register Edit Tool with Fixer
 	ag.RegisterTool(&edit.EditTool{
 		WorkspaceRoot: *workspace,
 		Provider:      client,
@@ -47,7 +47,7 @@ func main() {
 	
 	ctx := context.Background()
 
-	// Connect to MCP Server if requested
+	// Connect to MCP Server
 	if *mcpCmd != "" {
 		parts := strings.Fields(*mcpCmd)
 		if len(parts) > 0 {
@@ -73,19 +73,40 @@ func main() {
 
 			fmt.Printf("Connected to MCP server. Discovered %d tools:\n", len(tools))
 			for _, t := range tools {
-				fmt.Printf("- %s: %s\n", t.Name(), t.Description())
 				ag.RegisterTool(t)
 			}
 		}
 	}
 
-	// Load Session if provided
+	// Session Loading
 	if *sessionPath != "" {
 		if _, err := os.Stat(*sessionPath); err == nil {
 			if err := ag.LoadSession(*sessionPath); err != nil {
 				fmt.Printf("Warning: Failed to load session: %v\n", err)
 			}
 		}
+	}
+
+	// Mode Selection
+	if *investigate {
+		args := flag.Args()
+		if len(args) == 0 {
+			fmt.Println("Usage: castor -investigate <goal>")
+			os.Exit(1)
+		}
+		goal := strings.Join(args, " ")
+		inv := &agent.Investigator{Agent: ag}
+		fmt.Printf("🔍 Investigating: %s\n", goal)
+		
+		report, err := inv.Investigate(ctx, goal)
+		if err != nil {
+			fmt.Printf("Investigation failed: %v\n", err)
+			os.Exit(1)
+		}
+		
+		jsonReport, _ := json.MarshalIndent(report, "", "  ")
+		fmt.Println(string(jsonReport))
+		return
 	}
 
 	if *gui {
@@ -96,7 +117,6 @@ func main() {
 	} else if *interactive {
 		runInteractive(ctx, ag, *sessionPath)
 	} else {
-		// One-shot mode
 		args := flag.Args()
 		if len(args) == 0 {
 			fmt.Println("Usage: castor [flags] <prompt>")

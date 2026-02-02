@@ -35,12 +35,12 @@
 - [ ] **API Interface**
     - [ ] Define exported `Agent` struct for library usage (Refine `pkg/agent`).
 
-## Phase 4: MCP & Advanced Agents (In Progress)
+## Phase 4: MCP & Advanced Agents (Completed)
 - [x] **MCP Client**
     - [x] Implement Stdio transport.
     - [x] Implement Tool discovery and registration.
-- [ ] **Investigator Agent**
-    - [ ] Create specialized loop for "Scratchpad" workflow.
+- [x] **Investigator Agent**
+    - [x] Create specialized loop for "Scratchpad" workflow.
 
 ## Continuous Tasks
 - [ ] Add Unit Tests for each component.
