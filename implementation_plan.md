@@ -21,8 +21,8 @@
     - [x] Implement workspace sandboxing.
 - [ ] **Advanced Edit Tool** (`pkg/tools/edit`)
     - [x] Implement Exact Match strategy.
-    - [ ] Implement hashing for Read-Modify-Write safety.
-    - [ ] Implement Flexible/Regex matching.
+    - [x] Implement hashing for Read-Modify-Write safety.
+    - [x] Implement Flexible/Regex matching.
     - [ ] Implement "Fixer" loop for failed edits.
 
 ## Phase 3: Modes & Use Cases (In Progress)
