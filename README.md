@@ -17,7 +17,7 @@ Unlike many agent frameworks that rely heavily on cloud APIs, Castor treats loca
     *   **History Management:** Type-safe message history handling.
 *   **🖥️ Operational Modes:**
     *   **Headless CLI:** Scriptable interface for automation.
-    *   **TUI:** Rich interactive Terminal User Interface powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea).
+    *   **TUI:** Rich interactive Terminal User Interface with **slash commands** (`/tools`, `/help`, etc.).
     *   **REPL:** Simple interactive command-line loop.
     *   **Investigator:** Specialized sub-agent loop for deep codebase research.
 
@@ -69,6 +69,12 @@ export OPENAI_API_KEY=local
 ```bash
 ./castor -tui
 ```
+**Available Commands:**
+*   `/help` - Show help message
+*   `/tools` - List registered tools
+*   `/sys` - View system prompt
+*   `/clear` - Clear chat history
+*   `/quit` - Exit
 
 ### 2. Headless / One-Shot Mode
 ```bash
