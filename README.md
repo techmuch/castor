@@ -19,12 +19,13 @@ Unlike many agent frameworks that rely heavily on cloud APIs, Castor treats loca
     *   **Headless CLI:** Scriptable interface for automation.
     *   **TUI:** Rich interactive Terminal User Interface powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea).
     *   **REPL:** Simple interactive command-line loop.
+    *   **Investigator:** Specialized sub-agent loop for deep codebase research.
 
 ## Installation
 
 ### Prerequisites
 *   Go 1.21 or higher
-*   An OpenAI-compatible API key (or a local runner like Ollama)
+*   An OpenAI-compatible API backend (Cloud or Local)
 
 ### Build
 ```bash
@@ -33,38 +34,60 @@ cd castor
 go build -o castor ./cmd/castor
 ```
 
-## Usage
+## Connecting to an LLM
 
-Set your API key (if using OpenAI):
+Castor is designed to be model-agnostic. You can connect it to any provider that supports the OpenAI Chat Completions API.
+
+### 1. Using OpenAI
+Set your API key as an environment variable:
 ```bash
 export OPENAI_API_KEY=sk-...
+./castor -model gpt-4o -tui
 ```
 
+### 2. Using Ollama (Local)
+Ollama provides an OpenAI-compatible endpoint.
+1.  Start Ollama: `ollama serve`
+2.  Pull a model: `ollama pull llama3`
+3.  Run Castor:
+```bash
+# Point to your local Ollama instance (typically port 11434)
+export OPENAI_API_KEY=ollama 
+./castor -url http://localhost:11434/v1 -model llama3 -tui
+```
+
+### 3. Using Llama.cpp / vLLM
+Start your server with the OpenAI-compatible flag and point Castor to it:
+```bash
+export OPENAI_API_KEY=local
+./castor -url http://localhost:8080/v1 -model your-model -tui
+```
+
+## Usage Examples
+
 ### 1. Interactive Terminal UI (Recommended)
-The TUI provides a modern chat experience with scrolling history and text editing.
 ```bash
 ./castor -tui
 ```
 
 ### 2. Headless / One-Shot Mode
-Execute a single prompt and exit. Useful for scripting.
 ```bash
-./castor "List the files in the current directory"
+./castor "Summarize the files in the current directory"
 ```
 
-### 3. Session Persistence
-Save the conversation state to a file to resume it later.
+### 3. Investigator Mode
+Run a specialized research loop with a structured report output.
 ```bash
-# Start a session
-./castor -session my_chat.json -i
-
-# The agent remembers previous context when you run it again with the same session file
+./castor -investigate "Find the logic responsible for tool execution"
 ```
 
-### 4. Workspace Sandboxing
-By default, Castor uses the current directory as the workspace. You can specify a different root to restrict file access:
+### 4. Session Persistence
 ```bash
-./castor -w /path/to/safe/workspace -tui
+# Start and save a session
+./castor -session session.json "Hello, remember this secret code: 12345"
+
+# Resume later
+./castor -session session.json "What was the secret code?"
 ```
 
 ## Development

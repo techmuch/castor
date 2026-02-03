@@ -20,6 +20,7 @@ import (
 func main() {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	model := flag.String("model", "gpt-3.5-turbo", "LLM model to use")
+	baseURL := flag.String("url", "", "Base URL for OpenAI-compatible API (e.g. http://localhost:11434/v1)")
 	systemPrompt := flag.String("system", "You are a helpful assistant with access to files.", "System prompt")
 	interactive := flag.Bool("i", false, "Interactive mode (REPL)")
 	gui := flag.Bool("tui", false, "Start Terminal UI")
@@ -34,7 +35,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := openai.NewClient("", apiKey, *model)
+	client := openai.NewClient(*baseURL, apiKey, *model)
 	ag := agent.New(client, *systemPrompt)
 	
 	// Register Tools
@@ -65,7 +66,8 @@ func main() {
 			}
 			defer mcpClient.Close()
 
-			tools, err := mcpClient.ListTools(ctx)
+		
+tools, err := mcpClient.ListTools(ctx)
 			if err != nil {
 				fmt.Printf("Error listing MCP tools: %v\n", err)
 				os.Exit(1)
