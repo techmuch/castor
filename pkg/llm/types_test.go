@@ -2,7 +2,6 @@ package llm
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 )
 
